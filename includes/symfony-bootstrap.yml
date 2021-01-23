@@ -1,4 +1,20 @@
 ---
+#- name: Set Symfony secret in parameters.yml
+#  lineinfile:
+#    dest: "{{ symfony_root_dir }}/app/config/parameters.yml"
+#    regexp: "^    secret:"
+#    line: "    secret: {{ symfony_secret }}"
+#  tags:
+#    - deploy
+
+- name: Set Symfony secret in .env.local
+  lineinfile:
+    dest: "{{ symfony_root_dir }}/.env.local"
+    regexp: "APP_SECRET="
+    line: "APP_SECRET={{ symfony_secret }}"
+  tags:
+    - deploy
+
 - name: Install Composer's dependencies
   composer:
     working_dir: "{{ symfony_root_dir }}"
