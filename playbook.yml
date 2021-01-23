@@ -1,0 +1,179 @@
+---
+#- hosts: all
+#- hosts: webserver
+- hosts: vb
+  vars_prompt:
+    - name: symfony_env
+      prompt: "Enter the environment for your Symfony app (prod|dev|test)"
+      default: prod
+      private: no
+
+  environment:
+    SYMFONY_ENV: "{{ symfony_env|lower }}"
+
+  vars_files:
+    - ./vars/vault.yml
+    - ./vars/vars.yml
+
+  pre_tasks:
+    - name: Convert entered Symfony environment to lowercase
+      set_fact:
+        symfony_env: "{{ symfony_env|lower }}"
+      tags:
+        - always
+
+    - name: Update APT package manager repositories cache
+      become: true
+      apt:
+        update_cache: true
+
+    - name: Upgrade installed packages
+      become: true
+      apt:
+        upgrade: safe
+
+  roles:
+    - nginx
+    - role: DavidWittman.redis
+      become: true
+
+  tasks:
+    - ping: ~
+
+    - name: Install cowsay - it's probably important
+      become: true
+      apt:
+        name: cowsay
+
+    - name: Install Git VCS
+      become: true
+      apt:
+        name: git
+        state: latest
+
+    - name: Install PHP CLI
+      become: true
+      apt:
+        name: php7.2-cli
+        state: latest
+
+    - name: Install MySQL DB server
+      become: true
+      apt:
+        name: mysql-server
+        state: latest
+
+    - name: Install PHP packages
+      become: true
+      apt:
+        name:
+          - php7.2-cli
+          - php7.2-curl
+          - php7.2-fpm
+          - php7.2-intl
+          - php7.2-mysql
+          - php7.2-xml
+        state: latest
+      notify: Restart PHP-FPM
+
+    - name: Set date.timezone for CLI
+      become: true
+      lineinfile:
+        dest: /etc/php/7.2/cli/php.ini
+        regexp: "date.timezone ="
+        line: "date.timezone = Asia/Dhaka"
+      notify: Restart PHP-FPM
+
+    - name: Set date.timezone for FPM
+      become: true
+      lineinfile:
+        dest: /etc/php/7.2/fpm/php.ini
+        regexp: "date.timezone ="
+        line: "date.timezone = Asia/Dhaka"
+
+    - name: Create project directory and set its permissions
+      tags: 
+        - deploy
+      become: true
+      file:
+        path: "{{symfony_root_dir}}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        recurse: yes
+
+    - name: Checkout Git repository
+      tags:
+        - deploy
+      git:
+        repo: http://192.168.56.2/root/symfony.git
+        dest: "{{symfony_root_dir}}"
+        force: yes
+      register: repo_code
+
+    - name: Register code_changed variable
+      set_fact:
+        code_changed: repo_code.changed
+      tags:
+        - deploy
+
+    - name: Install low-level utilities
+      become: true
+      apt:
+        name:
+        - zip
+        - unzip
+
+    - name: Check for Composer
+      stat:
+        path: /usr/local/bin/composer
+      register: composer_stat
+      tags:
+        - deploy
+
+    - name: Download Composer
+      tags:
+        - deploy
+      script: ./scripts/install_composer.sh
+      when: not composer_stat.stat.exists
+
+    - name: Move Composer globally
+      tags:
+        - deploy
+      become: true
+      command: mv composer.phar /usr/local/bin/composer
+      when: not composer_stat.stat.exists
+
+    - name: Set permissions on Composer
+      tags:
+        - deploy
+      become: true
+      file:
+        path: /usr/local/bin/composer
+        mode: "a+x"
+      when: not composer_stat.stat.exists
+
+    # Bootstrap Symfony app
+    - include: ./includes/symfony-bootstrap.yml
+
+#    - name: Make sure composer is at its latest version
+#      composer:
+#        working_dir: "{{ symfony_root_dir }}"
+#        command: self-update
+#      register: composer_self_update
+#      changed_when: composer_self_update.stdout is not search('You are already using composer version')
+#      tags:
+#        - deploy
+
+#    - debug:
+#        var: composer_stat
+#        var: symfony_env
+#      tags:
+#        - deploy
+
+  handlers:
+    - name: Restart PHP-FPM
+      become: true
+      service:
+        name: php7.2-fpm
+        state: restarted
