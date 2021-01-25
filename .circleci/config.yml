@@ -1,9 +1,9 @@
 version: 2
 jobs:
   build_and_test:
-    working_directory: ~/mootube
+    working_directory: ~/project
     docker:
-      - image: php:7.1
+      - image: php:7.2
       - image: mysql:5.7
         environment:
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
@@ -19,7 +19,7 @@ jobs:
           name: Install Composer
           command: |
             php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && \
-            php -r "if (hash_file('SHA384', 'composer-setup.php') === '544e09ee996cdf60ece3804abc52599c22b1f40f4323403c44d44fdfdd586475ca9813a858088ffbc1f233e9b180f061') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;" && \
+            php -r "if (hash_file('sha384', 'composer-setup.php') === '756890a4488ce9024fc62c56153228907f1545c228516cbf63f885e036d37e9a59d27d63f46af1d4d07ee0f76181c7d3') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;" && \
             php composer-setup.php && \
             php -r "unlink('composer-setup.php');" && \
             chmod +x ./composer.phar && \
@@ -28,12 +28,12 @@ jobs:
       # Dependencies
       - checkout
       - restore_cache:
-          key: mootube-{{ .Branch }}-{{ checksum "./composer.lock" }}-v1
+          key: project-{{ .Branch }}-{{ checksum "./composer.lock" }}-v1
       - run: composer install --prefer-dist --no-interaction
       # Force pulling Simple PHPUnit dependencies to be able to cache them as well
-      - run: ./vendor/bin/simple-phpunit --version
+      - run: ./bin/phpunit --version
       - save_cache:
-          key: mootube-{{ .Branch }}-{{ checksum "./composer.lock" }}-v1
+          key: project-{{ .Branch }}-{{ checksum "./composer.lock" }}-v1
           paths:
             - '/root/.composer/cache'
             - './vendor'
@@ -41,23 +41,23 @@ jobs:
       # Database
       - run: ./bin/console doctrine:database:create --env=test
       - run: ./bin/console doctrine:schema:create --env=test
-      - run: ./bin/console hautelook_alice:doctrine:fixtures:load --no-interaction
+#      - run: ./bin/console hautelook_alice:doctrine:fixtures:load --no-interaction
 
       # To use server:start we need to install pcntl extension
       - run:
           name: Run web server in background
-          command: ./bin/console server:run
+          command: php -S 127.0.0.1:8000 -t public
           background: true
 
       # Testing
-      - run: ./bin/console lint:yaml app/config
-      - run: ./bin/console lint:twig app/Resources
-      - run: ./vendor/bin/simple-phpunit
+#      - run: ./bin/console lint:yaml app/config
+#      - run: ./bin/console lint:twig app/Resources
+      - run: ./bin/phpunit
 
   deploy:
-    working_directory: ~/mootube
+    working_directory: ~/project
     docker:
-      - image: ansible/ansible:ubuntu1604
+      - image: willhallonline/ansible
         environment:
           ANSIBLE_HOST_KEY_CHECKING: no
     steps:
@@ -69,16 +69,16 @@ jobs:
       # Dependencies
       - checkout
       - restore_cache:
-          key: mootube-{{ .Branch }}-{{ checksum "./ansible/requirements.yml" }}-v1
+          key: project-{{ .Branch }}-{{ checksum "./ansible/requirements.yml" }}-v1
       - run: ansible-galaxy install -r ansible/requirements.yml
       - save_cache:
-          key: mootube-{{ .Branch }}-{{ checksum "./ansible/requirements.yml" }}-v1
+          key: project-{{ .Branch }}-{{ checksum "./ansible/requirements.yml" }}-v1
           paths:
             - '/root/.ansible/roles'
 
       # Deploy
       - run: echo $ANSIBLE_VAULT_PASS > ./ansible/.vault-pass.txt
-      - run: ansible-playbook ansible/deploy.yml -i ansible/hosts.ini -e "git_branch=master" --vault-password-file=./ansible/.vault-pass.txt
+      - run: ansible-playbook ansible/deploy.yml -i ansible/hosts.ini -e "git_branch=main" --vault-password-file=./ansible/.vault-pass.txt
       - run: rm ./ansible/.vault-pass.txt
 
 workflows:
