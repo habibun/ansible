@@ -1,0 +1,48 @@
+stages:
+  - build
+  - test
+  - publish
+  - deploy
+
+build:
+  stage: build
+  script:
+    - echo "Building"
+    - mkdir build
+    - touch build/info.txt
+  tags:
+    - personal
+  artifacts:
+    paths:
+      - build/
+
+test:
+  stage: test
+  script:
+    - echo "Testing"
+    - test -f "build/info.txt"
+  tags:
+    - personal
+
+publish:
+  stage: publish
+  script:
+    - echo "Published"
+    - echo $(ansible --version)
+  tags:
+    - personal
+  only:
+    - stage
+    - master
+
+
+deploy:
+  stage: deploy
+  script:
+    - echo $USER
+    - ansible-playbook ~/ansible/deploy.yml -i ~/ansible/hosts.ini -e "git_branch=master" --vault-password-file=~/ansible/vault-pass.txt
+  tags:
+    - personal
+  only:
+    - master
+
