@@ -1,3 +1,3 @@
 ---
 ansible_user: server
-ansible_ssh_private_key_file: /home/habibun/.ssh/id_rsa
+ansible_ssh_private_key_file: ~/.ssh/id_rsa
