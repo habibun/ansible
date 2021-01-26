@@ -6,4 +6,5 @@
     group: "{{ ansible_user }}"
     mode: '0644'
     force: yes
+    state: touch
 
