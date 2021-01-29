@@ -1,5 +1,5 @@
 ---
-- hosts: aws
+- hosts: dk
 
   vars_files:
     - ./vars/vars.yml

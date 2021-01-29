@@ -1,2 +1,2 @@
 ---
-server_name: "{{ host_server_name|default('symfony.local') }}"
+server_name: "{{ host_server_name|default('symfony') }}"

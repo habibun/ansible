@@ -12,6 +12,7 @@
     dest: "{{ symfony_root_dir }}/.env.local"
     regexp: "APP_SECRET="
     line: "APP_SECRET={{ symfony_secret }}"
+    create: yes
   tags:
     - deploy
 
@@ -21,7 +22,7 @@
     no_dev: "{{ 'yes' if ('prod' == symfony_env) else 'no' }}"
   tags:
     - deploy
-  when: code_changed  | bool
+  when: code_changed | bool
 
 #- name: Fix var directory permissions
 #  file:
@@ -35,20 +36,20 @@
 #    - deploy
 
 # Symfony console commands
-- name: Create DB if not exists
-  command: '{{ symfony_console_path }} doctrine:database:create --if-not-exists'
-  register: db_create_result
-  changed_when: db_create_result.stdout is not search('already exists. Skipped')
-  tags:
-    - deploy
+#- name: Create DB if not exists
+#  command: '{{ symfony_console_path }} doctrine:database:create --if-not-exists'
+#  register: db_create_result
+#  changed_when: db_create_result.stdout is not search('already exists. Skipped')
+#  tags:
+#    - deploy
 
-- name: Execute migrations
-  command: '{{ symfony_console_path }} doctrine:migrations:migrate --no-interaction'
-  register: db_migrations_result
-  changed_when: "not db_migrations_result.stdout|search('No migrations to execute')"
-  tags:
-    - deploy
-  when: code_changed  | bool
+#- name: Execute migrations
+#  command: '{{ symfony_console_path }} doctrine:migrations:migrate --no-interaction'
+#  register: db_migrations_result
+#  changed_when: "not db_migrations_result.stdout|search('No migrations to execute')"
+#  tags:
+#    - deploy
+#  when: code_changed | bool
 
 #- name: Load data fixtures
 #  command: '{{ symfony_console_path }} hautelook_alice:doctrine:fixtures:load --no-interaction'

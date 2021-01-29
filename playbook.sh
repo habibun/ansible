@@ -13,3 +13,6 @@ ansible-playbook playbook.yml -i hosts/hosts.ini --skip-tags deploy
 
 # verbose
 ansible-playbook playbook.yml -i hosts/hosts.ini -t deploy --verbose
+
+# ask password
+ansible-playbook -i hosts.ini playbook.yml --ask-vault-pass --ask-become-pass
